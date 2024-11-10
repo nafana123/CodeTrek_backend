@@ -1,76 +1,45 @@
 <?php
-
 namespace App\Controller;
 
-use App\Entity\DifficultyLevels;
 use App\Entity\Language;
-use App\Entity\Task;
-use App\Repository\TaskRepository;
+use App\Entity\UserLanguage;
+use App\Service\UserService;
+use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 
 class TaskSelectionController extends AbstractController
 {
+    private $userService;
+
     private $entityManager;
-
-    private $taskRepository;
-
-    public function __construct(EntityManagerInterface $entityManager, TaskRepository $taskRepository)
+    public function __construct(UserService $userService, EntityManagerInterface $entityManager)
     {
-        $this->entityManager = $entityManager;
+         $this->userService = $userService;
 
-        $this->taskRepository = $taskRepository;
+         $this->entityManager = $entityManager;
     }
-
-    #[Route("/api/languages-and-difficulties", name: "languages_and_difficulties", methods: ["GET"])]
-    public function getLanguagesAndDifficulties()
+    #[Route("api/language/selection", name: "language_selection", methods: ["POST"])]
+    public function languageSelection(Request $request)
     {
-        $languages = $this->entityManager->getRepository(Language::class)->findAll();
-        $difficultyLevels = $this->entityManager->getRepository(DifficultyLevels::class)->findAll();
+        $user = $this->userService->getUserByToken($request);
 
-        $languagesData = [];
-        foreach ($languages as $language) {
-            $languagesData[] = [
-                'id' => $language->getId(),
-                'name' => $language->getName(),
-            ];
-        }
+        $data = json_decode($request->getContent(), true);
+        $lang = $this->entityManager->getRepository(Language::class)->findOneBy(['name' => $data['lang']]);
 
-        $difficultyData = [];
-        foreach ($difficultyLevels as $level) {
-            $difficultyData[] = [
-                'id' => $level->getId(),
-                'name' => $level->getLevel(),
-            ];
-        }
+        $activeLanguage = new UserLanguage();
+        $activeLanguage->setLanguage($lang);
+        $activeLanguage->setUser($user);
+        $this->entityManager->persist($activeLanguage);
+        $this->entityManager->flush();
 
-        return new JsonResponse([
-            'languages' => $languagesData,
-            'difficulties' => $difficultyData,
+
+        return $this->json([
+            'token' => $user->getId(),
+            'lang' => $lang->getId(),
         ]);
     }
-    #[Route("/api/tasks", name: "tasks", methods: ["GET"])]
-    public function getTasksByLanguageAndDifficulty(Request $request)
-    {
-        $languageId = $request->query->get('language_id');
-        $difficultyId = $request->query->get('difficulty_id');
-
-        $tasks = $this->taskRepository->findBy(['language' => $languageId, 'difficulty' => $difficultyId]);
-
-        $tasksData = [];
-        foreach ($tasks as $task) {
-            $tasksData[] = [
-                'id' => $task->getTaskId(),
-                'title' => $task->getTitle(),
-                'description' => $task->getDescription(),
-            ];
-        }
-
-        return new JsonResponse($tasksData);
-    }
-
-
 }
+
