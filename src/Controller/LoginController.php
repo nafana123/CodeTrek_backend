@@ -20,18 +20,9 @@ class LoginController extends AbstractController
         $this->entityManager = $entityManager;
     }
 
-    #[Route("/api/login", name: "login", methods: ["POST", "OPTIONS"])]
-    public function login(Request $request, JWTTokenManagerInterface $JWTManager)
+    #[Route("/api/login", name: "app_login")]
+    public function index(): Response
     {
-        $data = json_decode($request->getContent(), true);
 
-        $email = $data['email'];
-        $password = $data['password'];
-
-        $user = $this->entityManager->getRepository(User::class)->findOneBy(['email' => $email]);
-        if (!$user || !password_verify($password, $user->getPassword())) {
-            return $this->json(['error' => 'Неверный логин или пароль.'], Response::HTTP_UNAUTHORIZED);
-        }
-        return $this->json(['token' => $JWTManager->create($user)]);
     }
 }

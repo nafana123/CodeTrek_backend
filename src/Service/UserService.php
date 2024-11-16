@@ -18,17 +18,4 @@ class UserService
         $this->entityManager = $entityManager;
     }
 
-
-    public function getUserByToken(Request $request)
-    {
-        $token = $request->headers->get('Authorization');
-        $token = str_replace('Bearer ', '', $token);
-
-        $data = $this->JWTManager->parse($token);
-        $email = $data['username'];
-
-        $user = $this->entityManager->getRepository(User::class)->findOneBy(['email' => $email]);
-
-        return $user;
-    }
 }

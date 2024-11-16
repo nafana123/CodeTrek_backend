@@ -11,7 +11,6 @@ use Symfony\Component\Routing\Annotation\Route;
 
 use Symfony\Component\HttpFoundation\RequestStack;
 
-use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 
 class RegisterController extends AbstractController
 {
@@ -22,7 +21,7 @@ class RegisterController extends AbstractController
     }
 
     #[Route("/api/register", name: "register", methods: ["POST", "OPTIONS"])]
-    public function register(Request $request, JWTTokenManagerInterface $JWTManager): Response
+    public function register(Request $request): Response
     {
         $data = json_decode($request->getContent(), true);
 
@@ -36,6 +35,7 @@ class RegisterController extends AbstractController
         $this->entityManager->persist($user);
         $this->entityManager->flush();
 
-        return $this->json(['token' => $JWTManager->create($user)]);
+
+        return new Response(json_encode(['message' => 'Registration successful']), Response::HTTP_CREATED);
     }
 }

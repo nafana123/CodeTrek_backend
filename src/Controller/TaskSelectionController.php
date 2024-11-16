@@ -32,12 +32,32 @@ class TaskSelectionController extends AbstractController
     {
         $user = $this->getUser();
 
-        return $this->json(['lang' => $user]);
+        $data = json_decode($request->getContent(), true);
+        $lang = $this->entityManager->getRepository(Language::class)->findOneBy(['name' => $data['lang']]);
+        $activeLanguage = $this->entityManager->getRepository(UserLanguage::class)->findOneBy([
+            'user' => $user,
+            'language' => $lang
+        ]);
+        if($activeLanguage){
+            $this->entityManager->remove($activeLanguage);
+        }
+        else{
+            $activeLanguage = new UserLanguage();
+            $activeLanguage->setLanguage($lang);
+            $activeLanguage->setUser($user);
+            $this->entityManager->persist($activeLanguage);
+        }
+
+        $this->entityManager->flush();
+
+        $activeLanguages = $this->taskService->getUserLanguages($user);
+
+        return $this->json(['lang' => $activeLanguages]);
     }
     #[Route("api/user/languages", name: "user_languages", methods: ["GET"])]
     public function userLanguages(Request $request)
     {
-        $user = $this->userService->getUserByToken($request);
+        $user = $this->getUser();
         $activeLanguages = $this->taskService->getUserLanguages($user);
 
         return $this->json(['lang' => $activeLanguages]);
@@ -46,7 +66,7 @@ class TaskSelectionController extends AbstractController
     #[Route("api/choice/tasks", name: "choice_tasks", methods: ["GET"])]
     public function choiceTasks(Request $request)
     {
-        $user = $this->userService->getUserByToken($request);
+        $user = $this->getUser();
 
         $activeLanguages = $this->entityManager->getRepository(UserLanguage::class)->findBy(['user' => $user]);
 
