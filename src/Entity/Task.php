@@ -19,13 +19,15 @@ class Task
     #[ORM\Column(type: 'text')]
     private string $description;
 
-    #[ORM\ManyToOne(targetEntity: Language::class)]
-    #[ORM\JoinColumn(name: 'language_id', referencedColumnName: 'id')]
-    private Language $language;
-
     #[ORM\ManyToOne(targetEntity: DifficultyLevels::class)]
     #[ORM\JoinColumn(name: 'difficulty_id', referencedColumnName: 'id')]
     private DifficultyLevels $difficulty;
+
+    #[ORM\Column(length: 255)]
+    private ?string $input = null;
+
+    #[ORM\Column(length: 255)]
+    private ?string $output = null;
 
     public function getTaskId(): ?int
     {
@@ -54,17 +56,6 @@ class Task
         return $this;
     }
 
-    public function getLanguage(): Language
-    {
-        return $this->language;
-    }
-
-    public function setLanguage(Language $language): self
-    {
-        $this->language = $language;
-        return $this;
-    }
-
     public function getDifficulty(): DifficultyLevels
     {
         return $this->difficulty;
@@ -73,6 +64,30 @@ class Task
     public function setDifficulty(DifficultyLevels $difficulty): self
     {
         $this->difficulty = $difficulty;
+        return $this;
+    }
+
+    public function getInput(): ?string
+    {
+        return $this->input;
+    }
+
+    public function setInput(string $input): static
+    {
+        $this->input = $input;
+
+        return $this;
+    }
+
+    public function getOutput(): ?string
+    {
+        return $this->output;
+    }
+
+    public function setOutput(string $output): static
+    {
+        $this->output = $output;
+
         return $this;
     }
 }

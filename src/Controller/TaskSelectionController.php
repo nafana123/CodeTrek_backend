@@ -3,7 +3,9 @@ namespace App\Controller;
 
 use App\Entity\Language;
 use App\Entity\Task;
+use App\Entity\TaskLanguage;
 use App\Entity\UserLanguage;
+use App\Repository\TaskLanguageRepository;
 use App\Service\TaskService;
 use App\Service\UserService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -17,15 +19,23 @@ class TaskSelectionController extends AbstractController
 {
     private $userService;
     private $entityManager;
-
     private $taskService;
-    public function __construct(UserService $userService, EntityManagerInterface $entityManager, TaskService $taskService)
+
+    private $taskLanguageRepository;
+    public function __construct(
+        UserService $userService,
+        EntityManagerInterface $entityManager,
+        TaskService $taskService,
+        TaskLanguageRepository $taskLanguage
+    )
     {
          $this->userService = $userService;
 
          $this->entityManager = $entityManager;
 
          $this->taskService = $taskService;
+
+         $this->taskLanguageRepository = $taskLanguage;
     }
     #[Route("api/language/selection", name: "language_selection", methods: ["POST"])]
     public function languageSelection(Request $request)
@@ -78,21 +88,33 @@ class TaskSelectionController extends AbstractController
             return $this->json(['tasks' => []]);
         }
 
-        $tasks = $this->entityManager->getRepository(Task::class)->findBy([
-            'language' => $languageIds
-        ]);
+        $tasks = $this->taskLanguageRepository->selectTasks($languageIds);
+
+        $tasks = $this->entityManager->getRepository(TaskLanguage::class)
+            ->createQueryBuilder('tl')
+            ->innerJoin('tl.task', 't')
+            ->innerJoin('tl.language', 'l')
+            ->where('l.id IN (:languageIds)')
+            ->setParameter('languageIds', $languageIds)
+            ->getQuery()
+            ->getResult();
 
         if (empty($tasks)) {
             return $this->json(['tasks' => []]);
         }
 
-        $taskData = array_map(function ($task) {
+        $taskData = array_map(function ($taskLanguage) {
+            $task = $taskLanguage->getTask();
+            $language = $taskLanguage->getLanguage();
+
             return [
                 'taskId' => $task->getTaskId(),
                 'title' => $task->getTitle(),
                 'description' => $task->getDescription(),
                 'difficultyLevel' => $task->getDifficulty()->getLevel(),
-                'languageName' => $task->getLanguage()->getName(),
+                'languageName' => $language->getName(),
+                'input' => $task->getInput(),
+                'output' => $task->getOutput(),
             ];
         }, $tasks);
 
