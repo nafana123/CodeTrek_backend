@@ -90,15 +90,6 @@ class TaskSelectionController extends AbstractController
 
         $tasks = $this->taskLanguageRepository->selectTasks($languageIds);
 
-        $tasks = $this->entityManager->getRepository(TaskLanguage::class)
-            ->createQueryBuilder('tl')
-            ->innerJoin('tl.task', 't')
-            ->innerJoin('tl.language', 'l')
-            ->where('l.id IN (:languageIds)')
-            ->setParameter('languageIds', $languageIds)
-            ->getQuery()
-            ->getResult();
-
         if (empty($tasks)) {
             return $this->json(['tasks' => []]);
         }
@@ -108,7 +99,7 @@ class TaskSelectionController extends AbstractController
             $language = $taskLanguage->getLanguage();
 
             return [
-                'taskId' => $task->getTaskId(),
+                'id' => $task->getTaskId(),
                 'title' => $task->getTitle(),
                 'description' => $task->getDescription(),
                 'difficultyLevel' => $task->getDifficulty()->getLevel(),
