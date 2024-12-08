@@ -77,7 +77,7 @@ class TaskController extends AbstractController
         unlink($tempFilePath);
         return $this->json([
             'success' => false,
-            'error' => 'Ошибка выполнения кода. Попробуйте позже.',
+            'error' => 'Ошибкаa выполнения кода. Попробуйте позже.',
         ]);
     }
 }
