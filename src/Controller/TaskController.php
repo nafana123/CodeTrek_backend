@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Entity\SolvedTask;
 use App\Entity\Task;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -79,5 +80,31 @@ class TaskController extends AbstractController
             'success' => false,
             'error' => 'Ошибкаa выполнения кода. Попробуйте позже.',
         ]);
+    }
+
+    #[Route('/api/submit/task/{id}', name: 'submit_solution', methods: ['POST'])]
+    public function sumbitSolution(string $id, Request $request)
+    {
+        $data = json_decode($request->getContent(), true);
+
+        $code = $data['code'];
+        $answer = str_replace("\n", '', $data['consoleContent']);;
+
+        $task = $this->entityManager->getRepository(Task::class)->find($id);
+
+        if($task->getAnswer() === $answer){
+            $solvedTask = new SolvedTask();
+            $solvedTask->setCode($code);
+            $solvedTask->setTask($task);
+            $solvedTask->setUser($this->getUser());
+
+            $this->entityManager->persist($solvedTask);
+            $this->entityManager->flush();
+
+            return $this->json(['success' => true]);
+        }
+        else{
+            return $this->json(['warning']);
+        }
     }
 }

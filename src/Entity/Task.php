@@ -29,6 +29,9 @@ class Task
     #[ORM\Column(length: 255)]
     private ?string $output = null;
 
+    #[ORM\Column( length: 255)]
+    private ?string $answer;
+
     public function getTaskId(): ?int
     {
         return $this->task_id;
@@ -87,6 +90,17 @@ class Task
     public function setOutput(string $output): static
     {
         $this->output = $output;
+
+        return $this;
+    }
+    public function getAnswer(): ?string
+    {
+        return $this->answer;
+    }
+
+    public function setAnswer(string $answer): static
+    {
+        $this->answer = $answer;
 
         return $this;
     }
