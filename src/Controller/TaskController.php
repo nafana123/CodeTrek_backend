@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\SolvedTask;
 use App\Entity\Task;
+use App\Service\CodeExecutionService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -12,11 +13,14 @@ use Symfony\Component\Routing\Annotation\Route;
 
 class TaskController extends AbstractController
 {
-    private $entityManager;
+    private EntityManagerInterface $entityManager;
+    private CodeExecutionService $codeExecutionService;
 
-    public function __construct(EntityManagerInterface $entityManager)
+    public function __construct(EntityManagerInterface $entityManager, CodeExecutionService $codeExecutionService)
     {
         $this->entityManager = $entityManager;
+
+        $this->codeExecutionService = $codeExecutionService;
     }
 
     #[Route('/api/task/{id}/{language}', name: 'task', methods: ['GET'])]
@@ -36,63 +40,35 @@ class TaskController extends AbstractController
     }
 
     #[Route('/api/execute/task/{id}', name: 'task_execute', methods: ['POST'])]
-    public function executeCode(string $id, Request $request): Response
+    public function executeCode(Request $request): Response
     {
         $data = json_decode($request->getContent(), true);
         $code = $data['code'] ?? '';
 
-        $tempFilePath = sys_get_temp_dir() . '/user_code_' . uniqid() . '.js';
-        file_put_contents($tempFilePath, $code);
+        [$output, $error] = $this->codeExecutionService->executeUserCode($code);
 
-        $command = escapeshellcmd("node $tempFilePath");
-
-        $descriptorspec = [
-            1 => ["pipe", "w"],
-            2 => ["pipe", "w"],
-        ];
-
-        $process = proc_open($command, $descriptorspec, $pipes);
-
-        if (is_resource($process)) {
-            $output = stream_get_contents($pipes[1]);
-            $error = stream_get_contents($pipes[2]);
-
-            fclose($pipes[1]);
-            fclose($pipes[2]);
-
-            if ($error) {
-                unlink($tempFilePath);
-                return $this->json([
-                    'success' => false,
-                    'error' => 'Синтаксическая ошибка: ' . $error,
-                ]);
-            }
-
-            unlink($tempFilePath);
-            return $this->json([
-                'success' => true,
-                'output' => $output,
-            ]);
+        if ($error) {
+            return $this->json(['success' => false, 'error' => 'Синтаксическая ошибка: ' . $error]);
         }
 
-        unlink($tempFilePath);
-        return $this->json([
-            'success' => false,
-            'error' => 'Ошибкаa выполнения кода. Попробуйте позже.',
-        ]);
+        return $this->json(['success' => true, 'output' => $output]);
     }
 
     #[Route('/api/submit/task/{id}', name: 'submit_solution', methods: ['POST'])]
     public function sumbitSolution(string $id, Request $request)
     {
         $data = json_decode($request->getContent(), true);
-
         $code = $data['code'];
-        $answer = str_replace("\n", '', $data['consoleContent']);;
+
+        [$output, $error] = $this->codeExecutionService->executeUserCode($code);
+
+        if ($error) {
+            return $this->json(['success' => false, 'error' => 'Синтаксическая ошибка: ' . $error]);
+        }
 
         $task = $this->entityManager->getRepository(Task::class)->find($id);
-
-        if($task->getAnswer() === $answer){
+        $answer = str_replace("\n", '', $output);
+        if ($task->getAnswer() === $answer) {
             $solvedTask = new SolvedTask();
             $solvedTask->setCode($code);
             $solvedTask->setTask($task);
@@ -103,8 +79,7 @@ class TaskController extends AbstractController
 
             return $this->json(['success' => true]);
         }
-        else{
-            return $this->json(['warning']);
-        }
+
+        return $this->json(['warning']);
     }
 }
