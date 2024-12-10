@@ -4,6 +4,8 @@ namespace App\Controller;
 
 use App\Entity\SolvedTask;
 use App\Entity\Task;
+use App\Entity\TaskLanguage;
+use App\Repository\TaskLanguageRepository;
 use App\Service\CodeExecutionService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -16,11 +18,15 @@ class TaskController extends AbstractController
     private EntityManagerInterface $entityManager;
     private CodeExecutionService $codeExecutionService;
 
-    public function __construct(EntityManagerInterface $entityManager, CodeExecutionService $codeExecutionService)
+    private TaskLanguageRepository $taskLanguageRepository;
+
+    public function __construct(EntityManagerInterface $entityManager, CodeExecutionService $codeExecutionService, TaskLanguageRepository $taskLanguageRepository)
     {
         $this->entityManager = $entityManager;
 
         $this->codeExecutionService = $codeExecutionService;
+
+        $this->taskLanguageRepository = $taskLanguageRepository;
     }
 
     #[Route('/api/task/{id}/{language}', name: 'task', methods: ['GET'])]
@@ -81,5 +87,32 @@ class TaskController extends AbstractController
         }
 
         return $this->json(['warning']);
+    }
+
+    #[Route('/api/all/tasks', name: 'tasks', methods: ['GET'])]
+    public function allTasks(): Response
+    {
+        $user = $this->getUser();
+
+        $taskLanguages = $this->taskLanguageRepository->allTasks($user);
+
+        $groupedTasks = [];
+        foreach ($taskLanguages as $taskLanguage) {
+            $taskId = $taskLanguage['id'];
+            if (!isset($groupedTasks[$taskId])) {
+                $groupedTasks[$taskId] = [
+                    'id' => $taskId,
+                    'title' => $taskLanguage['title'],
+                    'description' => $taskLanguage['description'],
+                    'input' => $taskLanguage['input'],
+                    'output' => $taskLanguage['output'],
+                    'difficulty' => $taskLanguage['difficulty'],
+                ];
+            }
+
+            $groupedTasks[$taskId]['languages'][] = $taskLanguage['language'];
+        }
+
+        return $this->json(array_values($groupedTasks));
     }
 }
