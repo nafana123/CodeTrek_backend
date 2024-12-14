@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Entity\SolvedTask;
+use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -21,28 +22,25 @@ class SolvedTaskRepository extends ServiceEntityRepository
         parent::__construct($registry, SolvedTask::class);
     }
 
-//    /**
-//     * @return SolvedTask[] Returns an array of SolvedTask objects
-//     */
-//    public function findByExampleField($value): array
-//    {
-//        return $this->createQueryBuilder('s')
-//            ->andWhere('s.exampleField = :val')
-//            ->setParameter('val', $value)
-//            ->orderBy('s.id', 'ASC')
-//            ->setMaxResults(10)
-//            ->getQuery()
-//            ->getResult()
-//        ;
-//    }
-
-//    public function findOneBySomeField($value): ?SolvedTask
-//    {
-//        return $this->createQueryBuilder('s')
-//            ->andWhere('s.exampleField = :val')
-//            ->setParameter('val', $value)
-//            ->getQuery()
-//            ->getOneOrNullResult()
-//        ;
-//    }
+    public function findResolvedTasksByUser(User $user): array
+    {
+        return $this->createQueryBuilder('st')
+            ->innerJoin('st.task', 't') // Присоединяем задачи
+            ->join('t.difficulty', 'd') // Присоединяем уровень сложности
+            ->join('App\Entity\TaskLanguage', 'tl', 'WITH', 'tl.task = t') // Присоединяем TaskLanguage
+            ->join('tl.language', 'l') // Присоединяем таблицу Language
+            ->andWhere('st.user = :user') // Фильтруем по пользователю
+            ->setParameter('user', $user) // Указываем параметр пользователя
+            ->select(
+                'd.level AS difficulty',
+                't.task_id AS id',
+                't.title',
+                't.description',
+                't.input',
+                't.output',
+                'l.name AS language'
+            )
+            ->getQuery()
+            ->getResult();
+    }
 }
