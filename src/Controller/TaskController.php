@@ -2,9 +2,11 @@
 
 namespace App\Controller;
 
+use App\Entity\Leaderboard;
 use App\Entity\SolvedTask;
 use App\Entity\Task;
 use App\Entity\TaskLanguage;
+use App\Repository\LeaderboardRepository;
 use App\Repository\TaskLanguageRepository;
 use App\Service\CodeExecutionService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -20,13 +22,17 @@ class TaskController extends AbstractController
 
     private TaskLanguageRepository $taskLanguageRepository;
 
-    public function __construct(EntityManagerInterface $entityManager, CodeExecutionService $codeExecutionService, TaskLanguageRepository $taskLanguageRepository)
+    private LeaderboardRepository $leaderboardRepository;
+
+    public function __construct(EntityManagerInterface $entityManager, CodeExecutionService $codeExecutionService, TaskLanguageRepository $taskLanguageRepository, LeaderboardRepository $leaderboardRepository)
     {
         $this->entityManager = $entityManager;
 
         $this->codeExecutionService = $codeExecutionService;
 
         $this->taskLanguageRepository = $taskLanguageRepository;
+
+        $this->leaderboardRepository = $leaderboardRepository;
     }
 
     #[Route('/api/task/{id}/{language}', name: 'task', methods: ['GET'])]
@@ -83,7 +89,21 @@ class TaskController extends AbstractController
             $this->entityManager->persist($solvedTask);
             $this->entityManager->flush();
 
-            return $this->json(['success' => true]);
+            $points = $this->leaderboardRepository->findOneBy(['user' => $this->getUser()]);
+
+
+            if($points !== null){
+                $points->setPoints($points->getPoints() + $task->getDifficulty()->getLevel());
+            }
+            else{
+                $points = new Leaderboard();
+                $points->setUser($this->getUser());
+                $points->setPoints($task->getDifficulty()->getLevel());
+                $this->entityManager->persist($points);
+            }
+            $this->entityManager->flush();
+
+            return $this->json(['success' => $points]);
         }
 
         return $this->json(['warning']);

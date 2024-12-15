@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\User;
+use App\Repository\LeaderboardRepository;
 use App\Repository\SolvedTaskRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -17,25 +18,44 @@ class UserController extends AbstractController
 {
 
     private SolvedTaskRepository $solvedTaskRepository;
-
     private EntityManagerInterface $entityManager;
-    public function __construct(SolvedTaskRepository $solvedTaskRepository, EntityManagerInterface $entityManager)
+
+    private LeaderboardRepository $leaderboardRepository;
+
+
+    public function __construct(SolvedTaskRepository $solvedTaskRepository, EntityManagerInterface $entityManager, LeaderboardRepository $leaderboardRepository)
     {
         $this->solvedTaskRepository = $solvedTaskRepository;
 
         $this->entityManager = $entityManager;
+
+        $this->leaderboardRepository = $leaderboardRepository;
     }
     #[Route('/api/user/profile', name: 'profile', methods: ['GET'])]
     public function getDataUser(): Response
     {
         $user = $this->getUser();
+
+        $leaderboard = $this->leaderboardRepository->findBy([], ['points' => 'DESC']);
+
+        $userRank = 0;
+        $userPoints = 0;
+
+        foreach ($leaderboard as $index => $entry) {
+            if ($entry->getUser() === $user) {
+                $userPoints = $entry->getPoints();
+                $userRank = $index + 1;
+                break;
+            }
+        }
+
         $solvedTasks = $this->solvedTaskRepository->findResolvedTasksByUser($user);
 
-        $responseData = $this->prepareUserData($user, $solvedTasks);
+        $responseData = $this->prepareUserData($user, $solvedTasks, $userPoints, $userRank);
         return $this->json($responseData);
     }
 
-    private function prepareUserData($user, array $solvedTasks): array
+    private function prepareUserData($user, array $solvedTasks, int $userPoints, int $userRank): array
     {
         return [
             'user' => [
@@ -43,6 +63,8 @@ class UserController extends AbstractController
                 'login' => $user->getLogin(),
                 'email' => $user->getEmail(),
                 'registrationDate' => $user->getData(),
+                'points' => $userPoints,
+                'rank' => $userRank,
             ],
             'solvedTasks' => $this->formatSolvedTasks($solvedTasks),
         ];
