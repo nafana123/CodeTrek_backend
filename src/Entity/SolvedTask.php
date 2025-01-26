@@ -15,9 +15,9 @@ class SolvedTask
     #[ORM\Column(type: 'text')]
     private string $code;
 
-    #[ORM\ManyToOne(targetEntity: Task::class)]
-    #[ORM\JoinColumn(name: 'task_id', referencedColumnName: 'task_id')]
-    private Task $task;
+    #[ORM\ManyToOne(targetEntity: TaskLanguage::class)]
+    #[ORM\JoinColumn(name: 'task_language_id', referencedColumnName: 'id')]
+    private TaskLanguage $taskLanguage;
 
     #[ORM\ManyToOne(targetEntity: User::class)]
     #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id')]
@@ -39,14 +39,14 @@ class SolvedTask
         return $this;
     }
 
-    public function getTask(): Task
+    public function getTaskLanguage(): TaskLanguage
     {
-        return $this->task;
+        return $this->taskLanguage;
     }
 
-    public function setTask(Task $task): self
+    public function setTaskLanguage(TaskLanguage $taskLanguage): self
     {
-        $this->task = $task;
+        $this->taskLanguage = $taskLanguage;
         return $this;
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Entity\Language;
 use App\Entity\Leaderboard;
 use App\Entity\SolvedTask;
 use App\Entity\Task;
@@ -66,11 +67,20 @@ class TaskController extends AbstractController
         return $this->json(['success' => true, 'output' => $output]);
     }
 
-    #[Route('/api/submit/task/{id}', name: 'submit_solution', methods: ['POST'])]
-    public function sumbitSolution(string $id, Request $request)
+    #[Route('/api/submit/task/{id}/{language}', name: 'submit_solution', methods: ['POST'])]
+    public function submitSolution(string $id, Request $request, $language): Response
     {
         $data = json_decode($request->getContent(), true);
         $code = $data['code'];
+        $taskLanguages = $this->entityManager->getRepository(Language::class)->findOneBy(['name' => $language]);
+
+        $taskLanguage = $this->entityManager->getRepository(TaskLanguage::class)
+            ->findOneBy([
+                'task' => $id,
+                'language' => $taskLanguages
+            ]);
+
+        $task = $taskLanguage->getTask();
 
         [$output, $error] = $this->codeExecutionService->executeUserCode($code);
 
@@ -78,12 +88,11 @@ class TaskController extends AbstractController
             return $this->json(['success' => false, 'error' => 'Синтаксическая ошибка: ' . $error]);
         }
 
-        $task = $this->entityManager->getRepository(Task::class)->find($id);
         $answer = str_replace("\n", '', $output);
         if ($task->getAnswer() === $answer) {
             $solvedTask = new SolvedTask();
             $solvedTask->setCode($code);
-            $solvedTask->setTask($task);
+            $solvedTask->setTaskLanguage($taskLanguage);
             $solvedTask->setUser($this->getUser());
 
             $this->entityManager->persist($solvedTask);
@@ -91,16 +100,15 @@ class TaskController extends AbstractController
 
             $points = $this->leaderboardRepository->findOneBy(['user' => $this->getUser()]);
 
-
-            if($points !== null){
+            if ($points !== null) {
                 $points->setPoints($points->getPoints() + $task->getDifficulty()->getLevel());
-            }
-            else{
+            } else {
                 $points = new Leaderboard();
                 $points->setUser($this->getUser());
                 $points->setPoints($task->getDifficulty()->getLevel());
                 $this->entityManager->persist($points);
             }
+
             $this->entityManager->flush();
 
             return $this->json(['success' => $points]);

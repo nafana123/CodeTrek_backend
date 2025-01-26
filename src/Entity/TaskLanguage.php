@@ -8,14 +8,22 @@ use Doctrine\ORM\Mapping as ORM;
 class TaskLanguage
 {
     #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: 'integer')]
+    private ?int $id = null;
+
     #[ORM\ManyToOne(targetEntity: Task::class)]
     #[ORM\JoinColumn(name: "task_id", referencedColumnName: "task_id")]
     private Task $task;
 
-    #[ORM\Id]
     #[ORM\ManyToOne(targetEntity: Language::class)]
     #[ORM\JoinColumn(name: "language_id", referencedColumnName: "id")]
     private Language $language;
+
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
 
     public function getTask(): Task
     {
