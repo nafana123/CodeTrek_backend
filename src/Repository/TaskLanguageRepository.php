@@ -21,14 +21,17 @@ class TaskLanguageRepository extends ServiceEntityRepository
         parent::__construct($registry, TaskLanguage::class);
     }
 
-    public function selectTasks($languageIds)
+    public function selectTasks($languageIds, $user)
     {
         $qb = $this->createQueryBuilder('tl');
         $qb
             ->innerJoin('tl.task', 't')
             ->innerJoin('tl.language', 'l')
+            ->leftJoin('App\Entity\SolvedTask', 'st', 'WITH', 'st.taskLanguage = tl AND st.user = :user')
             ->where('l.id IN (:languageIds)')
-            ->setParameter('languageIds', $languageIds);
+            ->andWhere('st.id IS NULL')
+            ->setParameter('languageIds', $languageIds)
+            ->setParameter('user', $user);
 
         return $qb->getQuery()->getResult();
     }
@@ -40,12 +43,12 @@ class TaskLanguageRepository extends ServiceEntityRepository
             ->join('tl.task', 't')
             ->join('tl.language', 'l')
             ->join('t.difficulty', 'd')
-            ->leftJoin('App\Entity\SolvedTask', 'st', 'WITH', 'st.task = t AND st.user = :user')
-            ->where('st.id IS NULL')
+            ->leftJoin('App\Entity\SolvedTask', 'st', 'WITH', 'st.taskLanguage = tl AND st.user = :user')
+            ->andWhere('st.id IS NULL')
             ->setParameter('user', $user)
-            ->select('t.task_id AS id, t.title, t.description, t.input, t.output,d.level AS difficulty,l.name AS language');
+            ->select('t.task_id AS id', 't.title', 't.description', 't.input', 't.output', 'd.level AS difficulty', 'l.name AS language', 'st.id AS solved_task_id');
 
         return $qb->getQuery()->getResult();
-
     }
+
 }

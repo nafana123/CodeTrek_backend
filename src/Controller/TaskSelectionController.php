@@ -88,7 +88,7 @@ class TaskSelectionController extends AbstractController
             return $this->json(['tasks' => []]);
         }
 
-        $tasks = $this->taskLanguageRepository->selectTasks($languageIds);
+        $tasks = $this->taskLanguageRepository->selectTasks($languageIds, $user);
 
         if (empty($tasks)) {
             return $this->json(['tasks' => []]);

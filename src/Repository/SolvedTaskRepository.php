@@ -25,12 +25,12 @@ class SolvedTaskRepository extends ServiceEntityRepository
     public function findResolvedTasksByUser(User $user): array
     {
         return $this->createQueryBuilder('st')
-            ->innerJoin('st.task', 't') // Присоединяем задачи
-            ->join('t.difficulty', 'd') // Присоединяем уровень сложности
-            ->join('App\Entity\TaskLanguage', 'tl', 'WITH', 'tl.task = t') // Присоединяем TaskLanguage
-            ->join('tl.language', 'l') // Присоединяем таблицу Language
-            ->andWhere('st.user = :user') // Фильтруем по пользователю
-            ->setParameter('user', $user) // Указываем параметр пользователя
+            ->leftJoin('st.taskLanguage', 'tl')
+            ->join('tl.task', 't')
+            ->join('t.difficulty', 'd')
+            ->join('tl.language', 'l')
+            ->andWhere('st.user = :user')
+            ->setParameter('user', $user)
             ->select(
                 'd.level AS difficulty',
                 't.task_id AS id',
@@ -38,7 +38,8 @@ class SolvedTaskRepository extends ServiceEntityRepository
                 't.description',
                 't.input',
                 't.output',
-                'l.name AS language'
+                'l.name AS language',
+                'st.id AS solved_task_id'
             )
             ->getQuery()
             ->getResult();
