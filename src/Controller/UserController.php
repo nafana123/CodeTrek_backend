@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\User;
+use App\Entity\FavoriteTask;
 use App\Repository\LeaderboardRepository;
 use App\Repository\SolvedTaskRepository;
 use App\Repository\UserRepository;
@@ -16,26 +17,20 @@ use Symfony\Component\Routing\Annotation\Route;
 
 class UserController extends AbstractController
 {
-
     private SolvedTaskRepository $solvedTaskRepository;
     private EntityManagerInterface $entityManager;
-
     private LeaderboardRepository $leaderboardRepository;
-
 
     public function __construct(SolvedTaskRepository $solvedTaskRepository, EntityManagerInterface $entityManager, LeaderboardRepository $leaderboardRepository)
     {
         $this->solvedTaskRepository = $solvedTaskRepository;
-
         $this->entityManager = $entityManager;
-
         $this->leaderboardRepository = $leaderboardRepository;
     }
     #[Route('/api/user/profile', name: 'profile', methods: ['GET'])]
     public function getDataUser(): Response
     {
         $user = $this->getUser();
-
         $leaderboard = $this->leaderboardRepository->findBy([], ['points' => 'DESC']);
 
         $userRank = 0;
@@ -83,6 +78,24 @@ class UserController extends AbstractController
                 'language' => $task['language'],
             ];
         }, $solvedTasks);
+    }
+
+    #[Route('/api/user/favorites', name: 'favorites', methods: ['GET'])]
+    public function getFavoriteTasks(): Response
+    {
+        $user = $this->getUser();
+
+        $favoriteTasks = $this->entityManager->getRepository(FavoriteTask::class)->findBy(['user' => $user]);
+
+        $favoriteTasksData = array_map(function ($favoriteTask) {
+            return [
+                'id' => $favoriteTask->getTask()->getTaskId(),
+                'title' => $favoriteTask->getTask()->getTitle(),
+                'difficulty' => $favoriteTask->getTask()->getDifficulty()->getLevel(),
+            ];
+        }, $favoriteTasks);
+
+        return $this->json($favoriteTasksData);
     }
 
     #[Route('/api/user/profile/edit', name: 'edit_profile', methods: ['PATCH'])]

@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Entity\FavoriteTask;
 use App\Entity\Language;
 use App\Entity\Leaderboard;
 use App\Entity\SolvedTask;
@@ -124,6 +125,12 @@ class TaskController extends AbstractController
 
         $taskLanguages = $this->taskLanguageRepository->allTasks($user);
 
+        $favoriteTasks = $this->entityManager->getRepository(FavoriteTask::class)
+            ->findBy(['user' => $user]);
+        $favoriteTaskIds = array_map(function($favorite) {
+            return $favorite->getTask()->getTaskId();
+        }, $favoriteTasks);
+
         $groupedTasks = [];
         foreach ($taskLanguages as $taskLanguage) {
             $taskId = $taskLanguage['id'];
@@ -135,6 +142,7 @@ class TaskController extends AbstractController
                     'input' => $taskLanguage['input'],
                     'output' => $taskLanguage['output'],
                     'difficulty' => $taskLanguage['difficulty'],
+                    'isFavorite' => in_array($taskId, $favoriteTaskIds),
                 ];
             }
 
@@ -143,4 +151,32 @@ class TaskController extends AbstractController
 
         return $this->json(array_values($groupedTasks));
     }
+    #[Route('/api/tasks/{id}/favorite', name: 'toggle_favorite_task', methods: ['POST'])]
+    public function toggleFavorite($id): Response
+    {
+        $user = $this->getUser();
+        $task = $this->entityManager->getRepository(Task::class)->find($id);
+
+        $favoriteTask = $this->entityManager->getRepository(FavoriteTask::class)->findOneBy([
+            'user' => $user,
+            'task' => $task,
+        ]);
+
+        if ($favoriteTask) {
+            $this->entityManager->remove($favoriteTask);
+            $this->entityManager->flush();
+
+            return $this->json(['success' => true]);
+        } else {
+            $favoriteTask = new FavoriteTask();
+            $favoriteTask->setUser($user);
+            $favoriteTask->setTask($task);
+
+            $this->entityManager->persist($favoriteTask);
+            $this->entityManager->flush();
+
+            return $this->json(['success' => true]);
+        }
+    }
+
 }
