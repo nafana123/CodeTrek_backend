@@ -179,4 +179,22 @@ class TaskController extends AbstractController
         }
     }
 
+    #[Route('/api/details/task/{id}', name: 'task_details', methods: ['GET'])]
+    public function getTaskDetails($id): Response
+    {
+        $user = $this->getUser();
+        $task = $this->entityManager->getRepository(Task::class)->find($id);
+
+        $taskLanguages = $this->taskLanguageRepository->activeLanguage($id, $user);
+
+        $taskDetails = [
+            'task' => $task,
+            'languages' => $taskLanguages
+        ];
+
+        return $this->json($taskDetails);
+    }
+
+
+
 }

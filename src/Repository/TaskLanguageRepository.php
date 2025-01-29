@@ -51,4 +51,20 @@ class TaskLanguageRepository extends ServiceEntityRepository
         return $qb->getQuery()->getResult();
     }
 
+    public function activeLanguage($id, $user)
+    {
+        $qb = $this->createQueryBuilder('tl')
+            ->join('tl.task', 't')
+            ->join('tl.language', 'l')
+            ->leftJoin('App\Entity\SolvedTask', 'st', 'WITH', 'st.taskLanguage = tl AND st.user = :user')
+            ->andWhere('t.task_id = :taskId')
+            ->andWhere('st.id IS NULL')
+            ->setParameter('user', $user)
+            ->setParameter('taskId', $id)
+            ->select('l.name AS language');
+
+        return $qb->getQuery()->getResult();
+    }
+
+
 }
