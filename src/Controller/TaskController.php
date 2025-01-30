@@ -186,10 +186,18 @@ class TaskController extends AbstractController
         $task = $this->entityManager->getRepository(Task::class)->find($id);
 
         $taskLanguages = $this->taskLanguageRepository->activeLanguage($id, $user);
+        $favoriteTasks = $this->entityManager->getRepository(FavoriteTask::class)
+
+            ->findBy(['user' => $user]);
+        $favoriteTaskIds = array_map(function($favorite) {
+            return $favorite->getTask()->getTaskId();
+        }, $favoriteTasks);
 
         $taskDetails = [
             'task' => $task,
-            'languages' => $taskLanguages
+            'languages' => $taskLanguages,
+            'isFavorite' => in_array($task->getTaskId(), $favoriteTaskIds),
+
         ];
 
         return $this->json($taskDetails);
