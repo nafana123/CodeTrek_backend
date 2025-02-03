@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Entity\Discussion;
+use App\Entity\Task;
 use App\Entity\User;
 use App\Entity\FavoriteTask;
 use App\Repository\LeaderboardRepository;
@@ -87,15 +89,16 @@ class UserController extends AbstractController
 
         $favoriteTasks = $this->entityManager->getRepository(FavoriteTask::class)->findBy(['user' => $user]);
 
-        $favoriteTasksData = array_map(function ($favoriteTask) {
-            return [
-                'id' => $favoriteTask->getTask()->getTaskId(),
-                'title' => $favoriteTask->getTask()->getTitle(),
-                'difficulty' => $favoriteTask->getTask()->getDifficulty()->getLevel(),
+        $data = [];
+        foreach ($favoriteTasks as $task) {
+            $data[] = [
+                'id' => $task->getTask()->getTaskId(),
+                'title' => $task->getTask()->getTitle(),
+                'difficulty' => $task->getTask()->getDifficulty()->getLevel(),
             ];
-        }, $favoriteTasks);
+        }
 
-        return $this->json($favoriteTasksData);
+        return $this->json($data);
     }
 
     #[Route('/api/user/profile/edit', name: 'edit_profile', methods: ['PATCH'])]
@@ -117,5 +120,26 @@ class UserController extends AbstractController
         return $this->json([
             'user' => '$user'
         ]);
+    }
+
+    #[Route('/api/user/discussion', name: 'user_discussion', methods: ['GET'])]
+    public function getUserDiscussion(): Response
+    {
+        $user = $this->getUser();
+
+        $userDiscussions = $this->entityManager->getRepository(Discussion::class)->findBy(['user' => $user]);
+
+        $data = [];
+
+        foreach ($userDiscussions as $discussion) {
+            $data[] = [
+                'taskId' => $discussion->getTask()->getTaskId(),
+                'taskTitle' => $discussion->getTask()->getTitle(),
+                'difficulty' => $discussion->getTask()->getDifficulty()->getLevel(),
+                'message' => $discussion->getMessage(),
+            ];
+        }
+
+        return $this->json($data);
     }
 }
