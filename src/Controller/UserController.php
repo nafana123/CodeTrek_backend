@@ -137,6 +137,7 @@ class UserController extends AbstractController
                 'taskTitle' => $discussion->getTask()->getTitle(),
                 'difficulty' => $discussion->getTask()->getDifficulty()->getLevel(),
                 'message' => $discussion->getMessage(),
+                'createdAt' => $discussion->getData(),
             ];
         }
 

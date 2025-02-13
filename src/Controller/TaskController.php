@@ -2,13 +2,16 @@
 
 namespace App\Controller;
 
+use App\Entity\Discussion;
 use App\Entity\FavoriteTask;
 use App\Entity\Language;
 use App\Entity\Leaderboard;
 use App\Entity\SolvedTask;
 use App\Entity\Task;
 use App\Entity\TaskLanguage;
+use App\Repository\DiscussionRepository;
 use App\Repository\LeaderboardRepository;
+use App\Repository\ReplyToMessageRepository;
 use App\Repository\TaskLanguageRepository;
 use App\Service\CodeExecutionService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,7 +29,19 @@ class TaskController extends AbstractController
 
     private LeaderboardRepository $leaderboardRepository;
 
-    public function __construct(EntityManagerInterface $entityManager, CodeExecutionService $codeExecutionService, TaskLanguageRepository $taskLanguageRepository, LeaderboardRepository $leaderboardRepository)
+    private DiscussionRepository $discussionRepository;
+
+    private ReplyToMessageRepository $replyToMessageRepository;
+
+    public function __construct(
+        EntityManagerInterface $entityManager,
+        CodeExecutionService $codeExecutionService,
+        TaskLanguageRepository $taskLanguageRepository,
+        LeaderboardRepository $leaderboardRepository,
+        DiscussionRepository $discussionRepository,
+        ReplyToMessageRepository $replyToMessageRepository
+
+    )
     {
         $this->entityManager = $entityManager;
 
@@ -35,6 +50,10 @@ class TaskController extends AbstractController
         $this->taskLanguageRepository = $taskLanguageRepository;
 
         $this->leaderboardRepository = $leaderboardRepository;
+
+        $this->discussionRepository = $discussionRepository;
+
+        $this->replyToMessageRepository = $replyToMessageRepository;
     }
 
     #[Route('/api/task/{id}/{language}', name: 'task', methods: ['GET'])]
@@ -135,6 +154,14 @@ class TaskController extends AbstractController
         foreach ($taskLanguages as $taskLanguage) {
             $taskId = $taskLanguage['id'];
             if (!isset($groupedTasks[$taskId])) {
+                $discussions = $this->discussionRepository->findBy(['task' => $taskId]);
+                $totalMessages = count($discussions);
+
+                foreach ($discussions as $discussion) {
+                    $replies = $this->replyToMessageRepository->findBy(['discussion' => $discussion]);
+                    $totalMessages += count($replies);
+                }
+
                 $groupedTasks[$taskId] = [
                     'id' => $taskId,
                     'title' => $taskLanguage['title'],
@@ -143,6 +170,7 @@ class TaskController extends AbstractController
                     'output' => $taskLanguage['output'],
                     'difficulty' => $taskLanguage['difficulty'],
                     'isFavorite' => in_array($taskId, $favoriteTaskIds),
+                    'totalMessages' => $totalMessages,
                 ];
             }
 
