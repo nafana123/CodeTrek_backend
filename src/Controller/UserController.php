@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\Discussion;
+use App\Entity\ReplyToMessage;
 use App\Entity\Task;
 use App\Entity\User;
 use App\Entity\FavoriteTask;
@@ -132,15 +133,25 @@ class UserController extends AbstractController
         $data = [];
 
         foreach ($userDiscussions as $discussion) {
+            $replies = $this->entityManager->getRepository(ReplyToMessage::class)->findBy(['discussion' => $discussion]);
+
             $data[] = [
                 'taskId' => $discussion->getTask()->getTaskId(),
                 'taskTitle' => $discussion->getTask()->getTitle(),
                 'difficulty' => $discussion->getTask()->getDifficulty()->getLevel(),
                 'message' => $discussion->getMessage(),
                 'createdAt' => $discussion->getData(),
+                'replies' => array_map(function ($reply) {
+                    return [
+                        'replyMessage' => $reply->getReplyTo(),
+                        'createdAt' => $reply->getData(),
+                        'user' => $reply->getUser()->getLogin(),
+                    ];
+                }, $replies)
             ];
         }
 
         return $this->json($data);
     }
+
 }

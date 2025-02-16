@@ -76,7 +76,7 @@ class DiscussionController extends AbstractController
         $this->entityManager->persist($discussion);
         $this->entityManager->flush();
 
-        return $this->json(['status' => 'success']);
+        return $this->json(['id' => $discussion->getId()]);
     }
 
     #[Route('/api/reply/{discussionId}', name: 'add_reply', methods: ['POST'])]
@@ -100,6 +100,6 @@ class DiscussionController extends AbstractController
         $this->entityManager->persist($reply);
         $this->entityManager->flush();
 
-        return $this->json(['status' => 'success']);
+        return $this->json(['id' => $reply->getId()]);
     }
 }
