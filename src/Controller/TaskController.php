@@ -72,13 +72,17 @@ class TaskController extends AbstractController
         ]);
     }
 
-    #[Route('/api/execute/task/{id}', name: 'task_execute', methods: ['POST'])]
-    public function executeCode(Request $request): Response
+    #[Route('/api/execute/task/{id}/{language}', name: 'task_execute', methods: ['POST'])]
+    public function executeCode(Request $request, string $language): Response
     {
         $data = json_decode($request->getContent(), true);
         $code = $data['code'] ?? '';
 
-        [$output, $error] = $this->codeExecutionService->executeUserCode($code);
+        if($language === 'c'){
+            $language = 'c#';
+        }
+
+        [$output, $error] = $this->codeExecutionService->executeUserCode($code, $language);
 
         if ($error) {
             return $this->json(['success' => false, 'error' => 'Синтаксическая ошибка: ' . $error]);
@@ -92,8 +96,12 @@ class TaskController extends AbstractController
     {
         $data = json_decode($request->getContent(), true);
         $code = $data['code'];
-        $taskLanguages = $this->entityManager->getRepository(Language::class)->findOneBy(['name' => $language]);
 
+        if($language === 'c'){
+            $language = 'c#';
+        }
+
+        $taskLanguages = $this->entityManager->getRepository(Language::class)->findOneBy(['name' => $language]);
         $taskLanguage = $this->entityManager->getRepository(TaskLanguage::class)
             ->findOneBy([
                 'task' => $id,
@@ -102,7 +110,7 @@ class TaskController extends AbstractController
 
         $task = $taskLanguage->getTask();
 
-        [$output, $error] = $this->codeExecutionService->executeUserCode($code);
+        [$output, $error] = $this->codeExecutionService->executeUserCode($code, $language);
 
         if ($error) {
             return $this->json(['success' => false, 'error' => 'Синтаксическая ошибка: ' . $error]);
