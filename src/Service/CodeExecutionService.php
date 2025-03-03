@@ -6,7 +6,7 @@ class CodeExecutionService
 {
     private array $containers = [
         'javaScript' => 'user_code_node',
-        'typeScript' => 'user_code_ts', // Отдельный контейнер для TS
+        'typeScript' => 'user_code_ts',
         'python' => 'user_code_python',
         'php' => 'user_code_php',
         'c++' => 'user_code_gcc',

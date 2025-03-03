@@ -44,4 +44,22 @@ class SolvedTaskRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    public function solvedTasksByUserAndLanguage($user, $task): array
+    {
+        return $this->createQueryBuilder('st')
+        ->leftJoin('st.taskLanguage', 'tl')
+        ->join('tl.language', 'l')
+        ->andWhere('st.user = :user')
+        ->andWhere('tl.task = :task')
+        ->setParameter('user', $user)
+        ->setParameter('task', $task)
+            ->select(
+                'st.code',
+                'l.name AS language',
+                'st.id AS solved_task_id'
+            )
+            ->getQuery()
+            ->getResult();
+    }
 }

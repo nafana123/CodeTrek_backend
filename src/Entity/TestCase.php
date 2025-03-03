@@ -2,9 +2,10 @@
 
 namespace App\Entity;
 
+use App\Repository\TestCaseRepository;
 use Doctrine\ORM\Mapping as ORM;
 
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: TestCaseRepository::class)]
 class TestCase
 {
     #[ORM\Id]

@@ -9,10 +9,13 @@ use App\Entity\Leaderboard;
 use App\Entity\SolvedTask;
 use App\Entity\Task;
 use App\Entity\TaskLanguage;
+use App\Entity\TestCase;
 use App\Repository\DiscussionRepository;
 use App\Repository\LeaderboardRepository;
 use App\Repository\ReplyToMessageRepository;
+use App\Repository\SolvedTaskRepository;
 use App\Repository\TaskLanguageRepository;
+use App\Repository\TestCaseRepository;
 use App\Service\CodeExecutionService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -24,14 +27,13 @@ class TaskController extends AbstractController
 {
     private EntityManagerInterface $entityManager;
     private CodeExecutionService $codeExecutionService;
-
     private TaskLanguageRepository $taskLanguageRepository;
-
     private LeaderboardRepository $leaderboardRepository;
-
     private DiscussionRepository $discussionRepository;
-
     private ReplyToMessageRepository $replyToMessageRepository;
+    private TestCaseRepository $testCaseRepository;
+
+    private SolvedTaskRepository $solvedTaskRepository;
 
     public function __construct(
         EntityManagerInterface $entityManager,
@@ -39,21 +41,20 @@ class TaskController extends AbstractController
         TaskLanguageRepository $taskLanguageRepository,
         LeaderboardRepository $leaderboardRepository,
         DiscussionRepository $discussionRepository,
-        ReplyToMessageRepository $replyToMessageRepository
+        ReplyToMessageRepository $replyToMessageRepository,
+        TestCaseRepository $testCaseRepository,
+        SolvedTaskRepository $solvedTaskRepository,
 
     )
     {
         $this->entityManager = $entityManager;
-
         $this->codeExecutionService = $codeExecutionService;
-
         $this->taskLanguageRepository = $taskLanguageRepository;
-
         $this->leaderboardRepository = $leaderboardRepository;
-
         $this->discussionRepository = $discussionRepository;
-
         $this->replyToMessageRepository = $replyToMessageRepository;
+        $this->testCaseRepository = $testCaseRepository;
+        $this->solvedTaskRepository = $solvedTaskRepository;
     }
 
     #[Route('/api/task/{id}/{language}', name: 'task', methods: ['GET'])]
@@ -118,13 +119,22 @@ class TaskController extends AbstractController
 
         $answer = str_replace("\n", '', $output);
         if ($task->getAnswer() === $answer) {
-            $solvedTask = new SolvedTask();
-            $solvedTask->setCode($code);
-            $solvedTask->setTaskLanguage($taskLanguage);
-            $solvedTask->setUser($this->getUser());
+            $existingSolution = $this->entityManager->getRepository(SolvedTask::class)
+                ->findOneBy([
+                    'taskLanguage' => $taskLanguage,
+                    'user' => $this->getUser()
+                ]);
+            if($existingSolution){
+                $existingSolution->setCode($code);
+            }
+            else{
+                $solvedTask = new SolvedTask();
+                $solvedTask->setCode($code);
+                $solvedTask->setTaskLanguage($taskLanguage);
+                $solvedTask->setUser($this->getUser());
 
-            $this->entityManager->persist($solvedTask);
-            $this->entityManager->flush();
+                $this->entityManager->persist($solvedTask);
+                $this->entityManager->flush();
 
             $points = $this->leaderboardRepository->findOneBy(['user' => $this->getUser()]);
 
@@ -136,10 +146,11 @@ class TaskController extends AbstractController
                 $points->setPoints($task->getDifficulty()->getLevel());
                 $this->entityManager->persist($points);
             }
+          }
 
             $this->entityManager->flush();
 
-            return $this->json(['success' => $points]);
+            return $this->json(['success' => true]);
         }
 
         return $this->json(['warning']);
@@ -239,6 +250,14 @@ class TaskController extends AbstractController
         return $this->json($taskDetails);
     }
 
+    #[Route('/api/user/solution/{id}', name: 'user_solution', methods: ['GET'])]
+    public function userSolution(Task $task): Response
+    {
+        $user = $this->getUser();
 
+        $solvedTasks = $this->solvedTaskRepository->solvedTasksByUserAndLanguage($user, $task);
+
+        return $this->json($solvedTasks);
+    }
 
 }
