@@ -55,7 +55,7 @@ class CodeExecutionService
             case 'c#':
                 $encodedCode = base64_encode($code);
                 $command = sprintf(
-                    'docker exec %s sh -c "echo %s | base64 --decode > /tmp/Program.cs && dotnet run --nologo"',
+                    'docker exec %s sh -c "echo %s | base64 --decode > /tmp/Program.cs && cd /tmp && dotnet run --nologo"',
                     escapeshellarg($containerName),
                     escapeshellarg($encodedCode)
                 );

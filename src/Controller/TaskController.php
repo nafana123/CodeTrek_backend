@@ -60,16 +60,24 @@ class TaskController extends AbstractController
     #[Route('/api/task/{id}/{language}', name: 'task', methods: ['GET'])]
     public function displayTask(string $id, string $language): Response
     {
+        // почему то # в маршруте не передаётся, разобраться почему
+        if($language === 'c'){
+            $language = 'c#';
+        }
+
         $task = $this->entityManager->getRepository(Task::class)->find($id);
+        $language = $this->entityManager->getRepository(Language::class)->findOneBy(['name' => $language]);
+        $taskLanguage = $this->taskLanguageRepository->findOneBy(['language' => $language, 'task' => $task]);
 
         return $this->json([
             'id' => $task->getTaskId(),
             'difficulty' => $task->getDifficulty()->getLevel(),
-            'language' => $language,
+            'language' => $language->getName(),
             'title' => $task->getTitle(),
             'description' => $task->getDescription(),
             'input' => $task->getInput(),
             'output' => $task->getOutput(),
+            'codeTemplates' => $taskLanguage ? $taskLanguage->getCodeTemplates() : '',
         ]);
     }
 
@@ -98,62 +106,107 @@ class TaskController extends AbstractController
         $data = json_decode($request->getContent(), true);
         $code = $data['code'];
 
-        if($language === 'c'){
+        if ($language === 'c') {
             $language = 'c#';
         }
 
         $taskLanguages = $this->entityManager->getRepository(Language::class)->findOneBy(['name' => $language]);
-        $taskLanguage = $this->entityManager->getRepository(TaskLanguage::class)
-            ->findOneBy([
-                'task' => $id,
-                'language' => $taskLanguages
-            ]);
+        $taskLanguage = $this->entityManager->getRepository(TaskLanguage::class)->findOneBy(['task' => $id, 'language' => $taskLanguages]);
 
         $task = $taskLanguage->getTask();
+        $testCases = $this->testCaseRepository->findBy(['task' => $task]);
 
-        [$output, $error] = $this->codeExecutionService->executeUserCode($code, $language);
+        //Вынесу в базу когда проверю все языки
+        $outputFunctions = [
+            'javaScript' => 'console.log(sumArray(%s));',
+            'python' => "print(sumArray(%s))",
+            'php' => 'echo sumArray(%s);',
+            'c++' => 'int main() { std::cout << sumArray(std::vector<int>%s) << std::endl; return 0; }',
+            'c#' => 'Console.WriteLine(SumArray(new int[] %s));',
+            'java' => '',
+            'go' => 'func main() {    fmt.Println(sumArray([]int%s))}',
+            'typeScript' => 'console.log(sumArray(%s));',
+        ];
 
-        if ($error) {
-            return $this->json(['success' => false, 'error' => 'Синтаксическая ошибка: ' . $error]);
+        if (!isset($outputFunctions[$language])) {
+            return $this->json(['success' => false, 'error' => 'Неизвестный язык']);
         }
 
-        $answer = str_replace("\n", '', $output);
-        if ($task->getAnswer() === $answer) {
-            $existingSolution = $this->entityManager->getRepository(SolvedTask::class)
-                ->findOneBy([
-                    'taskLanguage' => $taskLanguage,
-                    'user' => $this->getUser()
-                ]);
-            if($existingSolution){
-                $existingSolution->setCode($code);
+        if ($testCases) {
+            foreach ($testCases as $testCase) {
+                $input = $testCase->getInput();
+                $expectedOutput = $testCase->getExpectedOutput();
+
+                if ($language === 'c++' || $language === 'c#' || $language === 'go') {
+                    $formattedInput = str_replace(['[', ']'], ['{', '}'], json_encode($input));
+                } else if($language === 'java'){
+                    $formattedInput = 'new int[]' . str_replace(['[', ']'], ['{', '}'], json_encode($input));
+                    $code = preg_replace(
+                        '/public class Main \{/',
+                        "public class Main {\n    public static void main(String[] args) {\n        System.out.println(sumArray($formattedInput));\n    }\n",
+                        $code
+                    );
+                }
+                else{
+                    $formattedInput = json_encode($input);
+                }
+
+                $outputCode = sprintf($outputFunctions[$language], $formattedInput);
+
+
+                $userCode = $code . "\n" . $outputCode;
+
+
+                [$output, $error] = $this->codeExecutionService->executeUserCode($userCode, $language);
+
+                if ($error) {
+                    return $this->json(['success' => false]);
+                }
+
+                $answer = trim($output);
+
+                if ($answer !== $expectedOutput) {
+                    return $this->json([
+                        'success' => false,
+                        'error' => 'Код не прошел проверку тестов. Пожалуйста, проверьте ваше решение.'
+                    ]);
+                }
             }
-            else{
-                $solvedTask = new SolvedTask();
-                $solvedTask->setCode($code);
-                $solvedTask->setTaskLanguage($taskLanguage);
-                $solvedTask->setUser($this->getUser());
-
-                $this->entityManager->persist($solvedTask);
-                $this->entityManager->flush();
-
-            $points = $this->leaderboardRepository->findOneBy(['user' => $this->getUser()]);
-
-            if ($points !== null) {
-                $points->setPoints($points->getPoints() + $task->getDifficulty()->getLevel());
-            } else {
-                $points = new Leaderboard();
-                $points->setUser($this->getUser());
-                $points->setPoints($task->getDifficulty()->getLevel());
-                $this->entityManager->persist($points);
-            }
-          }
-
-            $this->entityManager->flush();
-
-            return $this->json(['success' => true]);
         }
 
-        return $this->json(['warning']);
+        $existingSolution = $this->entityManager->getRepository(SolvedTask::class)
+            ->findOneBy([
+                'taskLanguage' => $taskLanguage,
+                'user' => $this->getUser()
+            ]);
+
+        if ($existingSolution) {
+            $existingSolution->setCode($code);
+        } else {
+            $solvedTask = new SolvedTask();
+            $solvedTask->setCode($code);
+            $solvedTask->setTaskLanguage($taskLanguage);
+            $solvedTask->setUser($this->getUser());
+
+            $this->entityManager->persist($solvedTask);
+        }
+
+        $this->entityManager->flush();
+
+        $points = $this->leaderboardRepository->findOneBy(['user' => $this->getUser()]);
+
+        if ($points !== null) {
+            $points->setPoints($points->getPoints() + $task->getDifficulty()->getLevel());
+        } else {
+            $points = new Leaderboard();
+            $points->setUser($this->getUser());
+            $points->setPoints($task->getDifficulty()->getLevel());
+            $this->entityManager->persist($points);
+        }
+
+        $this->entityManager->flush();
+
+        return $this->json(['success' => true]);
     }
 
     #[Route('/api/all/tasks', name: 'tasks', methods: ['GET'])]

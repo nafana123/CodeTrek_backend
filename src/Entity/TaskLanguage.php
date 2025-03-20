@@ -20,6 +20,9 @@ class TaskLanguage
     #[ORM\JoinColumn(name: "language_id", referencedColumnName: "id")]
     private Language $language;
 
+    #[ORM\Column(type: 'text')]
+    private $codeTemplates;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -44,6 +47,17 @@ class TaskLanguage
     public function setLanguage(Language $language): self
     {
         $this->language = $language;
+        return $this;
+    }
+
+    public function getCodeTemplates(): ?string
+    {
+        return $this->codeTemplates;
+    }
+
+    public function setCodeTemplates(?string $codeTemplates): self
+    {
+        $this->codeTemplates = $codeTemplates;
         return $this;
     }
 }

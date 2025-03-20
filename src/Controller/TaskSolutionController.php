@@ -37,6 +37,10 @@ class TaskSolutionController extends AbstractController
     {
         $user = $this->getUser();
 
+        if($language === 'c'){
+            $language = 'c#';
+        }
+
         $taskLanguage = $this->entityManager->getRepository(TaskLanguage::class)
             ->findOneBy([
                 'task' => $id,
