@@ -32,6 +32,9 @@ class Task
     #[ORM\Column( length: 255)]
     private ?string $answer;
 
+    #[Orm\Column(name: 'test_case', type: 'text')]
+    private ?string $testCase;
+
     public function getTaskId(): ?int
     {
         return $this->task_id;
@@ -101,6 +104,19 @@ class Task
     public function setAnswer(string $answer): static
     {
         $this->answer = $answer;
+
+        return $this;
+    }
+
+    public function getTestCase(): mixed
+    {
+        $decoded = json_decode($this->testCase, true);
+        return json_last_error() === JSON_ERROR_NONE ? $decoded : $this->testCase;
+    }
+
+    public function setTestCase(string $testCase): self
+    {
+        $this->testCase = $testCase;
 
         return $this;
     }

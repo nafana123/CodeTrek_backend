@@ -17,14 +17,11 @@ class TestCase
     #[ORM\JoinColumn(referencedColumnName: "task_id")]
     private Task $task;
 
-    #[ORM\Column(type: 'json')]
-    private array $input;
+    #[ORM\Column(type: 'text')]
+    private ?string $input;
 
     #[ORM\Column(type: 'string')]
     private string $expectedOutput;
-
-    #[ORM\Column(type: 'string')]
-    private string $executionTemplate;
 
     public function getId(): ?int
     {
@@ -42,12 +39,14 @@ class TestCase
         return $this;
     }
 
-    public function getInput(): array
+    public function getInput(): mixed
     {
-        return $this->input;
+        $decoded = json_decode($this->input, true);
+        return json_last_error() === JSON_ERROR_NONE ? $decoded : $this->input;
     }
 
-    public function setInput(array $input): self
+
+    public function setInput(string $input): self
     {
         $this->input = $input;
 
@@ -65,17 +64,4 @@ class TestCase
 
         return $this;
     }
-
-    public function getExecutionTemplate(): string
-    {
-        return $this->executionTemplate;
-    }
-
-    public function setExecutionTemplate(string $executionTemplate): self
-    {
-        $this->executionTemplate = $executionTemplate;
-
-        return $this;
-    }
-
 }

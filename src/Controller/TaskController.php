@@ -17,8 +17,10 @@ use App\Repository\SolvedTaskRepository;
 use App\Repository\TaskLanguageRepository;
 use App\Repository\TestCaseRepository;
 use App\Service\CodeExecutionService;
+use App\Service\TaskService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Asset\Package;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
@@ -32,8 +34,8 @@ class TaskController extends AbstractController
     private DiscussionRepository $discussionRepository;
     private ReplyToMessageRepository $replyToMessageRepository;
     private TestCaseRepository $testCaseRepository;
-
     private SolvedTaskRepository $solvedTaskRepository;
+    private TaskService $taskService;
 
     public function __construct(
         EntityManagerInterface $entityManager,
@@ -44,7 +46,7 @@ class TaskController extends AbstractController
         ReplyToMessageRepository $replyToMessageRepository,
         TestCaseRepository $testCaseRepository,
         SolvedTaskRepository $solvedTaskRepository,
-
+        TaskService $taskService
     )
     {
         $this->entityManager = $entityManager;
@@ -55,15 +57,13 @@ class TaskController extends AbstractController
         $this->replyToMessageRepository = $replyToMessageRepository;
         $this->testCaseRepository = $testCaseRepository;
         $this->solvedTaskRepository = $solvedTaskRepository;
+        $this->taskService = $taskService;
     }
 
     #[Route('/api/task/{id}/{language}', name: 'task', methods: ['GET'])]
     public function displayTask(string $id, string $language): Response
     {
-        // почему то # в маршруте не передаётся, разобраться почему
-        if($language === 'c'){
-            $language = 'c#';
-        }
+        $language = ($language === 'c') ? 'c#' : $language;
 
         $task = $this->entityManager->getRepository(Task::class)->find($id);
         $language = $this->entityManager->getRepository(Language::class)->findOneBy(['name' => $language]);
@@ -82,33 +82,41 @@ class TaskController extends AbstractController
     }
 
     #[Route('/api/execute/task/{id}/{language}', name: 'task_execute', methods: ['POST'])]
-    public function executeCode(Request $request, string $language): Response
+    public function executeCode(Request $request, Task $task, string $language): Response
     {
         $data = json_decode($request->getContent(), true);
         $code = $data['code'] ?? '';
 
-        if($language === 'c'){
-            $language = 'c#';
+        $language = ($language === 'c') ? 'c#' : $language;
+
+        $testCase = $task->getTestCase();
+        $taskLanguages = $this->entityManager->getRepository(Language::class)->findOneBy(['name' => $language]);
+        $taskLanguage = $this->entityManager->getRepository(TaskLanguage::class)->findOneBy(['task' => $task, 'language' => $taskLanguages]);
+
+        $outputFunction = $taskLanguage->getExecutionTemplate();
+
+        $userCode = $this->taskService->prepareUserCode($language, $testCase, $code, $taskLanguage->getExecutionTemplate(), $outputFunction);
+
+        [$output] = $this->codeExecutionService->executeUserCode($userCode, $language);
+
+        $answer = $task->getAnswer();
+
+        if(trim($output) === $answer) {
+            return $this->json(['success' => true, 'output' => $answer]);
         }
 
-        [$output, $error] = $this->codeExecutionService->executeUserCode($code, $language);
-
-        if ($error) {
-            return $this->json(['success' => false, 'error' => 'Синтаксическая ошибка: ' . $error]);
-        }
-
-        return $this->json(['success' => true, 'output' => $output]);
+        return $this->json(['success' => false, 'error' => 'Синтаксическая ошибка: ' . $output]);
     }
 
     #[Route('/api/submit/task/{id}/{language}', name: 'submit_solution', methods: ['POST'])]
     public function submitSolution(string $id, Request $request, $language): Response
     {
+        $user = $this->getUser();
+
         $data = json_decode($request->getContent(), true);
         $code = $data['code'];
 
-        if ($language === 'c') {
-            $language = 'c#';
-        }
+        $language = ($language === 'c') ? 'c#' : $language;
 
         $taskLanguages = $this->entityManager->getRepository(Language::class)->findOneBy(['name' => $language]);
         $taskLanguage = $this->entityManager->getRepository(TaskLanguage::class)->findOneBy(['task' => $id, 'language' => $taskLanguages]);
@@ -116,56 +124,16 @@ class TaskController extends AbstractController
         $task = $taskLanguage->getTask();
         $testCases = $this->testCaseRepository->findBy(['task' => $task]);
 
-        //Вынесу в базу когда проверю все языки
-        $outputFunctions = [
-            'javaScript' => 'console.log(sumArray(%s));',
-            'python' => "print(sumArray(%s))",
-            'php' => 'echo sumArray(%s);',
-            'c++' => 'int main() { std::cout << sumArray(std::vector<int>%s) << std::endl; return 0; }',
-            'c#' => 'Console.WriteLine(SumArray(new int[] %s));',
-            'java' => '',
-            'go' => 'func main() {    fmt.Println(sumArray([]int%s))}',
-            'typeScript' => 'console.log(sumArray(%s));',
-        ];
-
-        if (!isset($outputFunctions[$language])) {
-            return $this->json(['success' => false, 'error' => 'Неизвестный язык']);
-        }
+        $outputFunction = $taskLanguage->getExecutionTemplate();
 
         if ($testCases) {
             foreach ($testCases as $testCase) {
-                $input = $testCase->getInput();
                 $expectedOutput = $testCase->getExpectedOutput();
 
-                if ($language === 'c++' || $language === 'c#' || $language === 'go') {
-                    $formattedInput = str_replace(['[', ']'], ['{', '}'], json_encode($input));
-                } else if($language === 'java'){
-                    $formattedInput = 'new int[]' . str_replace(['[', ']'], ['{', '}'], json_encode($input));
-                    $code = preg_replace(
-                        '/public class Main \{/',
-                        "public class Main {\n    public static void main(String[] args) {\n        System.out.println(sumArray($formattedInput));\n    }\n",
-                        $code
-                    );
-                }
-                else{
-                    $formattedInput = json_encode($input);
-                }
+                $userCode = $this->taskService->prepareUserCode($language, $testCase->getInput(), $code, $taskLanguage->getExecutionTemplate(), $outputFunction);
+                [$output] = $this->codeExecutionService->executeUserCode($userCode, $language);
 
-                $outputCode = sprintf($outputFunctions[$language], $formattedInput);
-
-
-                $userCode = $code . "\n" . $outputCode;
-
-
-                [$output, $error] = $this->codeExecutionService->executeUserCode($userCode, $language);
-
-                if ($error) {
-                    return $this->json(['success' => false]);
-                }
-
-                $answer = trim($output);
-
-                if ($answer !== $expectedOutput) {
+                if (trim($output) !== $expectedOutput) {
                     return $this->json([
                         'success' => false,
                         'error' => 'Код не прошел проверку тестов. Пожалуйста, проверьте ваше решение.'
@@ -177,7 +145,7 @@ class TaskController extends AbstractController
         $existingSolution = $this->entityManager->getRepository(SolvedTask::class)
             ->findOneBy([
                 'taskLanguage' => $taskLanguage,
-                'user' => $this->getUser()
+                'user' => $user
             ]);
 
         if ($existingSolution) {
@@ -186,25 +154,12 @@ class TaskController extends AbstractController
             $solvedTask = new SolvedTask();
             $solvedTask->setCode($code);
             $solvedTask->setTaskLanguage($taskLanguage);
-            $solvedTask->setUser($this->getUser());
+            $solvedTask->setUser($user);
 
             $this->entityManager->persist($solvedTask);
+
+            $this->updateLeaderboard($user, $task->getDifficulty()->getLevel());
         }
-
-        $this->entityManager->flush();
-
-        $points = $this->leaderboardRepository->findOneBy(['user' => $this->getUser()]);
-
-        if ($points !== null) {
-            $points->setPoints($points->getPoints() + $task->getDifficulty()->getLevel());
-        } else {
-            $points = new Leaderboard();
-            $points->setUser($this->getUser());
-            $points->setPoints($task->getDifficulty()->getLevel());
-            $this->entityManager->persist($points);
-        }
-
-        $this->entityManager->flush();
 
         return $this->json(['success' => true]);
     }
@@ -311,6 +266,22 @@ class TaskController extends AbstractController
         $solvedTasks = $this->solvedTaskRepository->solvedTasksByUserAndLanguage($user, $task);
 
         return $this->json($solvedTasks);
+    }
+
+    private function updateLeaderboard($user, int $points)
+    {
+        $leaderboardEntry = $this->leaderboardRepository->findOneBy(['user' => $user]);
+
+        if ($leaderboardEntry) {
+            $leaderboardEntry->setPoints($leaderboardEntry->getPoints() + $points);
+        } else {
+            $leaderboardEntry = new Leaderboard();
+            $leaderboardEntry->setUser($user);
+            $leaderboardEntry->setPoints($points);
+            $this->entityManager->persist($leaderboardEntry);
+        }
+
+        $this->entityManager->flush();
     }
 
 }

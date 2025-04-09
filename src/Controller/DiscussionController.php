@@ -39,7 +39,7 @@ class DiscussionController extends AbstractController
             $replyData = [];
             foreach ($replies as $reply) {
                 $replyData[] = [
-                    'user' => $reply->getUser(),
+                    'user' => $this->formatUser($reply->getUser(), $currentUser),
                     'replyToMessage' => $reply->getReplyTo(),
                     'isCurrentUser' => $currentUser->getId() === $reply->getUser()->getId(),
                     'createdAt' => $discussion->getData()
@@ -49,7 +49,7 @@ class DiscussionController extends AbstractController
 
             $data[] = [
                 'id' => $discussion->getId(),
-                'user' => $discussion->getUser(),
+                'user' => $this->formatUser($discussion->getUser(), $currentUser),
                 'message' => $discussion->getMessage(),
                 'isCurrentUser' => $currentUser->getId() === $discussion->getUser()->getId(),
                 'replies' => $replyData,
@@ -58,6 +58,16 @@ class DiscussionController extends AbstractController
         }
 
         return $this->json($data);
+    }
+
+    private function formatUser($user, $currentUser)
+    {
+        return [
+            'id' => $user->getId(),
+            'login' => $user->getLogin(),
+            'avatar' => $user->getAvatar(),
+            'isCurrentUser' => $user->getId() === $currentUser->getId(),
+        ];
     }
 
     #[Route('/api/add/discussion/{id}', name: 'add_discussion', methods: ['POST'])]

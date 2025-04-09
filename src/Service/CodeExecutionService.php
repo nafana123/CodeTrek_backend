@@ -83,25 +83,8 @@ class CodeExecutionService
                 return [null, 'Unsupported language'];
         }
 
-        $descriptorspec = [
-            1 => ["pipe", "w"],
-            2 => ["pipe", "w"],
-        ];
+        $output = shell_exec($command);
 
-        $process = proc_open($command, $descriptorspec, $pipes);
-
-        if (is_resource($process)) {
-            $output = stream_get_contents($pipes[1]);
-            $error = stream_get_contents($pipes[2]);
-
-            fclose($pipes[1]);
-            fclose($pipes[2]);
-
-            proc_close($process);
-
-            return [$output, $error];
-        }
-
-        return [null, 'Ошибка выполнения кода. Попробуйте позже.'];
+        return [$output, $output !== null && str_contains($output, 'Parse error') ? $output : ''];
     }
 }

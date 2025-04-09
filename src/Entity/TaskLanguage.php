@@ -23,6 +23,9 @@ class TaskLanguage
     #[ORM\Column(type: 'text')]
     private $codeTemplates;
 
+    #[ORM\Column(type: 'text')]
+    private $executionTemplate;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -58,6 +61,20 @@ class TaskLanguage
     public function setCodeTemplates(?string $codeTemplates): self
     {
         $this->codeTemplates = $codeTemplates;
+
+        return $this;
+    }
+
+
+    public function getExecutionTemplate()
+    {
+        return $this->executionTemplate;
+    }
+
+    public function setExecutionTemplate($executionTemplate): self
+    {
+        $this->executionTemplate = $executionTemplate;
+
         return $this;
     }
 }

@@ -63,6 +63,7 @@ class UserController extends AbstractController
                 'registrationDate' => $user->getData(),
                 'points' => $userPoints,
                 'rank' => $userRank,
+                'avatar' => $user->getAvatar(),
             ],
             'solvedTasks' => $this->formatSolvedTasks($solvedTasks),
         ];
@@ -153,5 +154,57 @@ class UserController extends AbstractController
 
         return $this->json($data);
     }
+
+    #[Route('/api/user/avatar', name: 'upload_avatar', methods: ['POST'])]
+    public function uploadAvatar(Request $request): Response
+    {
+        $user = $this->getUser();
+        $file = $request->files->get('avatar');
+
+        if (!$file) {
+            return $this->json(['error' => 'Файл не найден'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $uploadsDir = $this->getParameter('avatars_directory');
+
+        if ($user->getAvatar()) {
+            $oldAvatarPath = $this->getParameter('kernel.project_dir') . '/public' . $user->getAvatar();
+            if (file_exists($oldAvatarPath)) {
+                unlink($oldAvatarPath);
+            }
+        }
+
+        $filename = 'avatar_user_' . $user->getId() . '.' . $file->guessExtension();
+        $file->move($uploadsDir, $filename);
+
+        $user->setAvatar('/uploads/avatars/' . $filename);
+        $this->entityManager->persist($user);
+        $this->entityManager->flush();
+
+        return $this->json(['avatar' => $user->getAvatar()]);
+    }
+
+    #[Route('/api/delete/user/avatar', name: 'delete_avatar', methods: ['POST'])]
+    public function deleteAvatar(): Response
+    {
+        $user = $this->getUser();
+
+        if ($user->getAvatar()) {
+            $avatarFullPath = $this->getParameter('kernel.project_dir') . '/public' . $user->getAvatar();
+
+            if (file_exists($avatarFullPath)) {
+                unlink($avatarFullPath);
+            }
+
+            $user->setAvatar(null);
+            $this->entityManager->persist($user);
+            $this->entityManager->flush();
+
+            return $this->json(['success' => true], Response::HTTP_OK);
+        }
+
+        return $this->json(['error' => 'No avatar to delete'], Response::HTTP_BAD_REQUEST);
+    }
+
 
 }
