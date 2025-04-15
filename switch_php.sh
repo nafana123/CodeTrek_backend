@@ -15,7 +15,7 @@ source ~/.zshrc
 
 echo "Starting required Docker containers..."
 docker start user_code_node 2>/dev/null || docker run -d --name user_code_node node:20 sleep infinity
-docker start user_code_typescript 2>/dev/null || docker run -d --name user_code_typescript node:20 sleep infinity
+docker start user_code_ts 2>/dev/null || docker run -d --name user_code_ts node:20 sleep infinity
 docker start user_code_python 2>/dev/null || docker run -d --name user_code_python python sleep infinity
 docker start user_code_php 2>/dev/null || docker run -d --name user_code_php php:8.1-cli sleep infinity
 docker start user_code_gcc 2>/dev/null || docker run -d --name user_code_gcc gcc:latest sleep infinity

@@ -3,11 +3,18 @@
 namespace App\Entity;
 
 use App\Repository\DiscussionRepository;
+use Doctrine\Common\Collections\Collection;
+use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: DiscussionRepository::class)]
 class Discussion
 {
+    public function __construct()
+    {
+        $this->replies = new ArrayCollection();
+    }
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -25,6 +32,9 @@ class Discussion
     private string $message;
     #[ORM\Column(type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $data = null;
+
+    #[ORM\OneToMany(targetEntity: ReplyToMessage::class, mappedBy: "discussion", cascade: ["remove"], orphanRemoval: true)]
+    private Collection $replies;
 
     public function getId(): ?int
     {
