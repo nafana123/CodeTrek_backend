@@ -26,6 +26,8 @@ class ReplyToMessage
 
     #[ORM\Column(type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $data = null;
+    #[ORM\Column(type: 'boolean')]
+    private bool $isEdit = false;
 
     public function getId(): ?int
     {
@@ -76,6 +78,16 @@ class ReplyToMessage
     public function setData(\DateTimeInterface $data): self
     {
         $this->data = $data;
+
+        return $this;
+    }
+    public function getIsEdit(): bool
+    {
+        return $this->isEdit;
+    }
+    public function setIsEdit(bool $isEdit): self
+    {
+        $this->isEdit = $isEdit;
 
         return $this;
     }

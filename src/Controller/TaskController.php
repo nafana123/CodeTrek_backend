@@ -188,6 +188,7 @@ class TaskController extends AbstractController
                     $replies = $this->replyToMessageRepository->findBy(['discussion' => $discussion]);
                     $totalMessages += count($replies);
                 }
+                $solvedTasks = $this->solvedTaskRepository->solvedTasksByUserAndLanguage($user, $taskId);
 
                 $groupedTasks[$taskId] = [
                     'id' => $taskId,
@@ -198,6 +199,7 @@ class TaskController extends AbstractController
                     'difficulty' => $taskLanguage['difficulty'],
                     'isFavorite' => in_array($taskId, $favoriteTaskIds),
                     'totalMessages' => $totalMessages,
+                    'solvedTasks' => count($solvedTasks),
                 ];
             }
 

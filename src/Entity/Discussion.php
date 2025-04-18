@@ -36,6 +36,9 @@ class Discussion
     #[ORM\OneToMany(targetEntity: ReplyToMessage::class, mappedBy: "discussion", cascade: ["remove"], orphanRemoval: true)]
     private Collection $replies;
 
+    #[ORM\Column(type: 'boolean')]
+    private bool $isEdit = false;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -83,6 +86,18 @@ class Discussion
     public function setData(?\DateTimeInterface $data): self
     {
         $this->data = $data;
+        return $this;
+    }
+
+    public function getIsEdit(): bool
+    {
+        return $this->isEdit;
+    }
+
+    public function setIsEdit(bool $isEdit): self
+    {
+        $this->isEdit = $isEdit;
+
         return $this;
     }
 }

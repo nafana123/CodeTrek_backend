@@ -46,7 +46,8 @@ class DiscussionController extends AbstractController
                     'user' => $this->formatUser($reply->getUser(), $currentUser),
                     'replyToMessage' => $reply->getReplyTo(),
                     'isCurrentUser' => $currentUser->getId() === $reply->getUser()->getId(),
-                    'createdAt' => $discussion->getData()
+                    'createdAt' => $discussion->getData(),
+                    'isEdited' => $reply->getIsEdit(),
 
                 ];
             }
@@ -57,7 +58,8 @@ class DiscussionController extends AbstractController
                 'message' => $discussion->getMessage(),
                 'isCurrentUser' => $currentUser->getId() === $discussion->getUser()->getId(),
                 'replies' => $replyData,
-                'createdAt' => $discussion->getData()
+                'createdAt' => $discussion->getData(),
+                'isEdited' => $discussion->getIsEdit(),
             ];
         }
 
@@ -121,6 +123,7 @@ class DiscussionController extends AbstractController
     {
         $data = json_decode($request->getContent(), true);
         $discussion->setMessage($data['message']);
+        $discussion->setIsEdit(true);
         $this->entityManager->flush();
 
         return $this->json(['status' => 'ok']);
@@ -147,6 +150,7 @@ class DiscussionController extends AbstractController
         $reply = $this->replyToMessageRepository->find($replyId);
 
         $reply->setReplyTo($newMessage);
+        $reply->setIsEdit(true);
         $this->entityManager->flush();
 
         return $this->json(['status' => 'success', 'message' => 'Reply updated']);
