@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+
+  # Контейнер для работы с Docker внутри
+  container-manager:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    container_name: container_manager
+
+  # Контейнер для Node.js
+  user_code_node:
+    image: node:20
+    command: sleep infinity
+    container_name: user_code_node
+    restart: unless-stopped
+
+  # Контейнер для TypeScript
+  user_code_ts:
+    image: node:20
+    command: sleep infinity
+    container_name: user_code_ts
+    restart: unless-stopped
+
+  # Контейнер для Python
+  user_code_python:
+    image: python
+    command: sleep infinity
+    container_name: user_code_python
+    restart: unless-stopped
+
+  # Контейнер для PHP
+  user_code_php:
+    image: php:8.1-cli
+    command: sleep infinity
+    container_name: user_code_php
+    restart: unless-stopped
+
+  # Контейнер для GCC
+  user_code_gcc:
+    image: gcc:latest
+    command: sleep infinity
+    container_name: user_code_gcc
+    restart: unless-stopped
+
+  # Контейнер для .NET
+  user_code_dotnet:
+    image: mcr.microsoft.com/dotnet/sdk:8.0
+    command: sleep infinity
+    container_name: user_code_dotnet
+    restart: unless-stopped
+
+  # Контейнер для Java
+  user_code_java:
+    image: openjdk:latest
+    command: sleep infinity
+    container_name: user_code_java
+    restart: unless-stopped
+
+  # Контейнер для Go
+  user_code_go:
+    image: golang:latest
+    command: sleep infinity
+    container_name: user_code_go
+    restart: unless-stopped
+
+  # Контейнер для инициализации других контейнеров
+  docker-init:
+    image: ubuntu:22.04
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./scripts:/scripts
+    command: ["sh", "/scripts/start-containers.sh"]
+    container_name: docker_init
+    restart: unless-stopped
+
+volumes:
+  database_data:

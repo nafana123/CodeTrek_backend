@@ -68,13 +68,8 @@ class RegisterController extends AbstractController
     public function confirm(Request $request): Response
     {
         $data = json_decode($request->getContent(), true);
-
-        $existingUser = $this->entityManager->getRepository(User::class)->findOneByEmail($data['email']);
-        if ($existingUser) {
-            return new Response('Пользователь с таким email уже существует', Response::HTTP_CONFLICT);
-        }
-
         $code = random_int(10000, 99999);
+
         $cacheKey = 'confirmation_code_' . md5($data['email']);
         $cacheItem = $this->cache->getItem($cacheKey);
         $cacheItem->set($code);
@@ -84,5 +79,13 @@ class RegisterController extends AbstractController
         $this->sendMailService->sendMail($data['email'], $code);
 
         return $this->json('success', Response::HTTP_CREATED);
+    }
+    #[Route("/api/check-email", name: "check_email", methods: ["POST"])]
+    public function checkEmail(Request $request): Response
+    {
+        $data = json_decode($request->getContent(), true);
+        $existingUser = $this->entityManager->getRepository(User::class)->findOneByEmail($data['email']);
+
+        return $this->json(['exists' => (bool)$existingUser]);
     }
 }
