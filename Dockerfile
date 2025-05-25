@@ -6,11 +6,26 @@ ENV TZ=Etc/UTC
 RUN echo "Установка утилит..." && \
     apt-get update && apt-get install -y \
     curl wget git unzip vim nano tzdata && \
-    apt-get clean && echo "Утилиты установлены."
+    apt-get clean && echo "Утилиты установлены." \
+
+RUN echo "Установка Docker CLI..." && \
+    apt-get update && apt-get install -y \
+    ca-certificates gnupg lsb-release && \
+    mkdir -m 0755 -p /etc/apt/keyrings && \
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+    gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
+    echo \
+    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+    https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | \
+    tee /etc/apt/sources.list.d/docker.list > /dev/null && \
+    apt-get update && \
+    apt-get install -y docker-ce-cli && \
+    apt-get clean && \
+    echo "Docker CLI установлен."
 
 RUN echo "Установка PHP..." && \
     apt-get update && apt-get install -y \
-    php php-cli && \
+    php php-cli php-mbstring php-xml php-curl php-intl php-zip php-sqlite3 php-mysql  && \
     apt-get clean && echo "PHP установлен."
 
 RUN echo "Установка Node.js и NPM..." && \
@@ -48,7 +63,8 @@ WORKDIR /app
 
 COPY . /app
 
-RUN echo "Контейнеры запущены."
+RUN chmod -R 755 /app
+
+CMD ["php", "-S", "0.0.0.0:8000", "-t", "public"]
 
 EXPOSE 8000
-
