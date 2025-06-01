@@ -3,10 +3,14 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
 
+# Заменяем зеркала на зеркало Яндекса
+RUN sed -i 's|http://archive.ubuntu.com/ubuntu/|http://mirror.yandex.ru/ubuntu/|g' /etc/apt/sources.list && \
+    sed -i 's|http://security.ubuntu.com/ubuntu/|http://mirror.yandex.ru/ubuntu/|g' /etc/apt/sources.list
+
 RUN echo "Установка утилит..." && \
     apt-get update && apt-get install -y \
-    curl wget git unzip vim nano tzdata && \
-    apt-get clean && echo "Утилиты установлены." \
+    coreutils curl wget git unzip vim nano tzdata && \
+    apt-get clean && echo "Утилиты установлены."
 
 RUN echo "Установка Docker CLI..." && \
     apt-get update && apt-get install -y \
@@ -65,6 +69,4 @@ COPY . /app
 
 RUN chmod -R 755 /app
 
-CMD ["php", "-S", "0.0.0.0:8000", "-t", "public"]
-
-EXPOSE 8000
+CMD ["sleep", "infinity"]

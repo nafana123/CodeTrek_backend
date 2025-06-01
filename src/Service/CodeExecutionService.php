@@ -25,57 +25,96 @@ class CodeExecutionService
 
         switch ($language) {
             case 'javaScript':
-                $command = sprintf('docker exec %s node -e %s 2>&1', escapeshellarg($containerName),escapeshellarg($code));
+                $command = sprintf(
+                    'docker exec %s sh -c %s 2>&1',
+                    escapeshellarg($containerName),
+                    escapeshellarg('timeout 5s node -e ' . escapeshellarg($code))
+                );
                 break;
 
             case 'typeScript':
                 $encodedCode = base64_encode($code);
+                $innerCommand = sprintf(
+                    'echo %s | base64 --decode > /tmp/script.ts && npm install -g typescript --silent && tsc /tmp/script.ts && timeout 5s node /tmp/script.js',
+                    escapeshellarg($encodedCode)
+                );
                 $command = sprintf(
-                'docker exec %s sh -c "echo %s | base64 --decode > /tmp/script.ts && npm install -g typescript --silent && tsc /tmp/script.ts && node /tmp/script.js"',
-                escapeshellarg($containerName),
-                escapeshellarg($encodedCode)
-            );
+                    'docker exec %s sh -c %s 2>&1',
+                    escapeshellarg($containerName),
+                    escapeshellarg($innerCommand)
+                );
                 break;
 
-
             case 'python':
-                $command = sprintf('docker exec %s python -c %s 2>&1', escapeshellarg($containerName), escapeshellarg($code));
+                $command = sprintf(
+                    'docker exec %s sh -c %s 2>&1',
+                    escapeshellarg($containerName),
+                    escapeshellarg('timeout 5s python -c ' . escapeshellarg($code))
+                );
                 break;
 
             case 'php':
                 $encodedCode = base64_encode($code);
-                $command = sprintf('docker exec %s sh -c "echo %s | base64 --decode | php"', escapeshellarg($containerName), escapeshellarg($encodedCode));
+                $innerCommand = sprintf(
+                    'echo %s | base64 --decode | timeout 5s php',
+                    escapeshellarg($encodedCode)
+                );
+                $command = sprintf(
+                    'docker exec %s sh -c %s 2>&1',
+                    escapeshellarg($containerName),
+                    escapeshellarg($innerCommand)
+                );
                 break;
 
             case 'c++':
                 $encodedCode = base64_encode($code);
-                $command = sprintf('docker exec %s sh -c "echo %s | base64 --decode | g++ -x c++ -o /tmp/a.out - && /tmp/a.out" 2>&1', escapeshellarg($containerName), escapeshellarg($encodedCode));
+                $innerCommand = sprintf(
+                    'echo %s | base64 --decode | g++ -x c++ -o /tmp/a.out - && timeout 5s /tmp/a.out',
+                    escapeshellarg($encodedCode)
+                );
+                $command = sprintf(
+                    'docker exec %s sh -c %s 2>&1',
+                    escapeshellarg($containerName),
+                    escapeshellarg($innerCommand)
+                );
                 break;
 
             case 'c#':
                 $encodedCode = base64_encode($code);
-                $command = sprintf(
-                    'docker exec %s sh -c "echo %s | base64 --decode > /tmp/Program.cs && cd /tmp && dotnet run --nologo"',
-                    escapeshellarg($containerName),
+                $innerCommand = sprintf(
+                    'echo %s | base64 --decode > /tmp/Program.cs && cd /tmp && timeout 5s dotnet run --nologo',
                     escapeshellarg($encodedCode)
+                );
+                $command = sprintf(
+                    'docker exec %s sh -c %s 2>&1',
+                    escapeshellarg($containerName),
+                    escapeshellarg($innerCommand)
                 );
                 break;
 
             case 'java':
                 $encodedCode = base64_encode($code);
-                $command = sprintf(
-                    'docker exec %s sh -c "echo %s | base64 --decode > /tmp/Main.java && javac /tmp/Main.java && java -cp /tmp Main" 2>&1',
-                    escapeshellarg($containerName),
+                $innerCommand = sprintf(
+                    'echo %s | base64 --decode > /tmp/Main.java && javac /tmp/Main.java && timeout 5s java -cp /tmp Main',
                     escapeshellarg($encodedCode)
+                );
+                $command = sprintf(
+                    'docker exec %s sh -c %s 2>&1',
+                    escapeshellarg($containerName),
+                    escapeshellarg($innerCommand)
                 );
                 break;
 
             case 'go':
                 $encodedCode = base64_encode($code);
-                $command = sprintf(
-                    'docker exec %s sh -c "echo %s | base64 --decode > /tmp/main.go && go run /tmp/main.go" 2>&1',
-                    escapeshellarg($containerName),
+                $innerCommand = sprintf(
+                    'echo %s | base64 --decode > /tmp/main.go && timeout 5s go run /tmp/main.go',
                     escapeshellarg($encodedCode)
+                );
+                $command = sprintf(
+                    'docker exec %s sh -c %s 2>&1',
+                    escapeshellarg($containerName),
+                    escapeshellarg($innerCommand)
                 );
                 break;
 
